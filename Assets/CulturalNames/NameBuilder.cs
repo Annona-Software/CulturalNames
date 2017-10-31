@@ -33,7 +33,9 @@ namespace CulturalNames
 			{
 				return GetNameElement(names, nametype);
 			}
-			else return "-";
+			
+			Debug.Log("Name generation failed. Check the 'culture' parameter for errors.");
+			return " - ";
 		}
 
 		/// <summary>
@@ -41,8 +43,8 @@ namespace CulturalNames
 		/// </summary>
 		public static Name RandomName(Gender gender, string culture)
 		{
-			string forename = "";
-			string surname = "";
+			string forename = " - ";
+			string surname = " - ";
 
 			string[][] names = new string[][]{};
 
@@ -54,6 +56,7 @@ namespace CulturalNames
 				surname = GetNameElement(names, NameType.SURNAME);
 			}
 			
+			Debug.Log("Name generation failed. Check the 'culture' parameter for errors.");
 			return new Name(forename, surname);
 		}
 
@@ -62,8 +65,8 @@ namespace CulturalNames
 		///</summary>
 		public static Name RandomUniqueName(Gender gender, string culture)
 		{
-			string forename = "";
-			string surname = "";
+			string forename = " - ";
+			string surname = " - ";
 			string[][] names = new string[][]{};
 			Name name;
 
@@ -89,11 +92,9 @@ namespace CulturalNames
 				AddName(name); //add this name to the hashed list
 				return name;
 			}
-			else //if try get fails, warn and use blank name
-			{
-				Debug.Log("Name generation failed. Check the culture parameter for errors.");
-				return new Name(" - ", " - ");
-			}
+
+			Debug.Log("Name generation failed. Check the 'culture' parameter for errors.");
+			return new Name(forename, surname);
 		}
 
 #endregion
