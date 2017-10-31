@@ -1,23 +1,29 @@
 ﻿using System;
 using System.IO;
-using System.Collections;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
 using UnityEngine;
 
 namespace CulturalNames
 {
+	/// <summary>
+	/// The heart of the asset; use random methods or utility methods to query the jagged array directly.
+	/// </summary>
 	public class NameBuilder
 	{
-		static System.Random rnd = new System.Random();
-		
 		//all the names from files can be loaded into memory and stored here during runtime
 		public static Dictionary<string, string[][]> loadedNames;
 
-		#region Random Names
+		static System.Random rnd = new System.Random();
+		//to prevent duplicates
+		static List<string> activeHashedNames = new List<string>();
+
+#region Random Methods
 		/// <summary>
-		/// Get a random name of a given kind
+		/// Get a random name of a given kind, not guaranteed to be unique
 		/// </summary>	
-		public static string RandomName(Gender gender, string culture)
+		public static string RandomForename(Gender gender, string culture)
 		{
 			string[][] names = new string[][]{};
 
@@ -25,41 +31,77 @@ namespace CulturalNames
 			
 			if(loadedNames.TryGetValue(culture, out names))
 			{
-				return GetRandomArrayElement(names, nametype);
+				return GetNameElement(names, nametype);
 			}
 			else return "-";
 		}
 
 		/// <summary>
-		/// Gets a random name in its entirety
+		/// Gets a random name in its entirety, not guaranteed to be unique
 		/// </summary>
-		public static Name RandomFullName(Gender gender, string culture)
+		public static Name RandomName(Gender gender, string culture)
 		{
 			string forename = "";
 			string surname = "";
 
 			string[][] names = new string[][]{};
 
-			NameType nametype = (gender == Gender.MALE) ? NameType.MALE : NameType.FEMALE;
+			NameType nameType = (gender == Gender.MALE) ? NameType.MALE : NameType.FEMALE;
 
 			if(loadedNames.TryGetValue(culture, out names))
 			{
-				forename = GetRandomArrayElement(names, nametype);
-				surname = GetRandomArrayElement(names, NameType.SURNAME);
+				forename = GetNameElement(names, nameType);
+				surname = GetNameElement(names, NameType.SURNAME);
 			}
 			
 			return new Name(forename, surname);
 		}
 
-		#endregion
-
-
-		#region Utility
-
 		///<summary>
-		/// Loads and parses all the name files in "TextAssets/Names"
+		/// Returns a random name guaranteed to be unique from a given culture.
 		///</summary>
-		///
+		public static Name RandomUniqueName(Gender gender, string culture)
+		{
+			string forename = "";
+			string surname = "";
+			string[][] names = new string[][]{};
+			Name name;
+
+			NameType nameType = (gender == Gender.MALE) ? NameType.MALE : NameType.FEMALE;
+
+			if(loadedNames.TryGetValue(culture, out names))
+			{
+				int iterations = 0;
+				do
+				{
+					forename = GetNameElement(names, nameType);
+					surname = GetNameElement(names, NameType.SURNAME);
+					name = new Name(forename, surname);
+					iterations++;
+					if(iterations > 20) //sanity check to prevent infinite loops
+					{
+						Debug.Log("Too few names in the CSV; multiple collisions have occurred.");
+						break;
+					}
+				}
+				while(!IsUniqueName(name));
+
+				AddName(name); //add this name to the hashed list
+				return name;
+			}
+			else //if try get fails, warn and use blank name
+			{
+				Debug.Log("Name generation failed. Check the culture parameter for errors.");
+				return new Name(" - ", " - ");
+			}
+		}
+
+#endregion
+
+#region Initialization and List Management
+		///<summary>
+		/// Loads and parses all the name files in "TextAssets/Names"; call at initialization.
+		///</summary>
 		public static void LoadNames()
 		{
 			string path = Application.streamingAssetsPath + "/TextAssets/Names";
@@ -67,10 +109,86 @@ namespace CulturalNames
 			loadedNames = ParseDirectoryIntoCSVDictionary(path);
 		}
 
-		///<summary>
-		/// Returns a random element from a given array
-		///</summary>
-		public static T GetRandomArrayElement<T>(T[][] array, NameType nameType)
+		public static void PopulateNameList(GameObject[] characters)
+		{
+
+		}
+
+		/// <summary>
+		/// Empties then refills the hashed names list.
+		/// </summary>		
+		public static void PopulateNameList(Name[] names)
+		{
+			activeHashedNames = new List<string>();
+
+			for(int i = 0; i < names.Length; i++)
+			{
+				activeHashedNames.Add(HashName(names[i]));
+			}
+		}
+
+		/// <summary>
+		/// Adds a particular name's hash to the hash list
+		/// </summary>
+		public static void AddName(Name name)
+		{
+			if(IsUniqueName(name))
+			{
+				activeHashedNames.Add(HashName(name));
+			}
+			else Debug.Log("Cannot add to name list; this is a duplicate name." +
+							" Try using RandomUniqueName to generate a name.");
+			
+		}
+
+		/// <summary>
+		/// Removes a particular name's hash from the hash list
+		/// </summary>
+		public static void RemoveName(Name name)
+		{
+			if(!IsUniqueName(name))
+			{
+				activeHashedNames.Remove(HashName(name));
+			}
+			else Debug.Log("Cannot remove the name from the list because it's not on the list.");
+		}
+#endregion
+
+
+#region Utility
+		/// <summary>
+		/// Hashes a name using MD5 algorithm and returns as a string.
+		/// </summary>
+		static string HashName(Name name)
+		{
+			StringBuilder hashedName = new StringBuilder();
+			MD5 md5Hasher = MD5.Create();
+
+			Byte[] array = Encoding.ASCII.GetBytes(name.ToString());
+
+			//hash the byte array
+			foreach (Byte b in md5Hasher.ComputeHash(array))
+			{
+				hashedName.Append(b.ToString("x2"));
+			}
+
+			return hashedName.ToString();
+		}
+
+		/// <summary>
+		/// Measures given name against all hashes stored in static list to prevent duplicates.
+		/// </summary>
+		static bool IsUniqueName(Name name)
+		{
+			string hashedName = HashName(name);
+
+			return !activeHashedNames.Contains(hashedName);
+		}
+
+		/// <summary>
+		/// Gets a single random name element from a given jagged array.
+		/// </summary>
+		public static string GetNameElement(string[][] array, NameType nameType)
 		{
 			return array[(int)nameType][rnd.Next(array[(int)nameType].Length)];
 		}
@@ -131,8 +249,6 @@ namespace CulturalNames
 
 			return parsedDict;
 		}
-
-
-			#endregion
+#endregion
 	}
 }

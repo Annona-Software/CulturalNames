@@ -9,7 +9,6 @@ namespace CulturalNames
 		SURNAME,
 		MALE,
 		FEMALE,
-		NEUTRAL,
 		TITLE,
 		SUFFIX
 	}
@@ -21,6 +20,9 @@ namespace CulturalNames
 		string surname;
 		string suffix;
 
+		/// <summary>
+		/// Constructor for Name; title and suffix default to empty for convenience.
+		/// </summary>
 		public Name(string _forename, string _surname, string _title = "", string _suffix = "")
 		{
 			forename = _forename;
@@ -29,13 +31,20 @@ namespace CulturalNames
 			suffix = _suffix;
 		}
 
+		/// <summary>
+		/// Returns a combined string of all the character's name components.
+		/// </summary>
 		public override string ToString()
 		{
 			if(title != "")
 			{
 				return title + " " + forename + " " + surname + " " + suffix;
 			}
-			else return forename + " " + surname + " " + suffix;
+			else if(suffix != "")
+			{
+				return forename + " " + surname + " " + suffix;
+			}
+			else return forename + " " + surname;
 		}
 	}
 }
