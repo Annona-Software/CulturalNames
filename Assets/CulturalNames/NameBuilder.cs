@@ -110,11 +110,6 @@ namespace CulturalNames
 			loadedNames = ParseDirectoryIntoCSVDictionary(path);
 		}
 
-		public static void PopulateNameList(GameObject[] characters)
-		{
-
-		}
-
 		/// <summary>
 		/// Empties then refills the hashed names list.
 		/// </summary>		
